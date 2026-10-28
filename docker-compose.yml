@@ -1,0 +1,151 @@
+name: veriflow-aicte
+
+x-backend-env: &backend-env
+  ENVIRONMENT: development
+  DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-veriflow}:${POSTGRES_PASSWORD:-veriflow}@db:5432/${POSTGRES_DB:-veriflow}
+  REDIS_URL: redis://redis:6379/0
+  CELERY_ENABLED: "true"
+  CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+  LOCAL_STORAGE_DIR: /data/uploads
+  AUTH_SECRET_KEY: ${AUTH_SECRET_KEY:-veriflow-compose-dev-secret-change-me}
+  AUTH_TOKEN_TTL_MINUTES: ${AUTH_TOKEN_TTL_MINUTES:-480}
+  GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+  SLA_THRESHOLD_DAYS: ${SLA_THRESHOLD_DAYS:-15}
+  ESCALATION_L2_DAYS: ${ESCALATION_L2_DAYS:-30}
+  ESCALATION_L3_DAYS: ${ESCALATION_L3_DAYS:-45}
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-veriflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-veriflow}
+      POSTGRES_DB: ${POSTGRES_DB:-veriflow}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-veriflow} -d ${POSTGRES_DB:-veriflow}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  api:
+    build: ./backend
+    image: veriflow-aicte-api:local
+    environment:
+      <<: *backend-env
+      SEED_DEMO_DATA: "1"
+    volumes:
+      - uploads:/data/uploads
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
+  worker:
+    build: ./backend
+    image: veriflow-aicte-api:local
+    command:
+      [
+        "celery",
+        "-A",
+        "app.workers.celery_app.celery",
+        "worker",
+        "--loglevel=info",
+        "--concurrency=2",
+      ]
+    environment:
+      <<: *backend-env
+      SEED_DEMO_DATA: "0"
+    volumes:
+      - uploads:/data/uploads
+    depends_on:
+      api:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  beat:
+    build: ./backend
+    image: veriflow-aicte-api:local
+    command:
+      [
+        "celery",
+        "-A",
+        "app.workers.celery_app.celery",
+        "beat",
+        "--loglevel=info",
+        "--schedule=/tmp/celerybeat-schedule",
+      ]
+    environment:
+      <<: *backend-env
+      SEED_DEMO_DATA: "0"
+    depends_on:
+      api:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 15s
+    restart: unless-stopped
+
+volumes:
+  db-data:
+  redis-data:
+  uploads:

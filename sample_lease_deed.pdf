@@ -1,0 +1,51 @@
+%Sample Lease Deed PDF for SANCAR AICTE Workflow Testing
+%Contains fields Gemini extraction expects: lease_start_date, lease_end_date, total_land_area_sqm, survey_numbers
+%This PDF is designed to be legible by google-genai gemini-2.5-flash with strict schema
+
+%PDF-1.4
+%âãÏÓ
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >>
+endobj
+4 0 obj
+<< /Length 214 >>
+stream
+/F1 24 Tf
+72 720 Td
+(AICTE LAND LEASE DEED) Tj
+72 696 Td
+(Lease Commencement Date: 26 October 2022) Tj
+72 672 Td
+(Lease Expiry Date: 22 October 2036) Tj
+72 648 Td
+(Land Area: 24500.5 square metres) Tj
+72 624 Td
+(Survey Numbers: 112/2, 113/1, 114/3) Tj
+72 600 Td
+(Registered: 25 October 2022) Tj
+72 576 Td
+(Course Duration: 4 years UG programme) Tj
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000010 00000 n 
+0000000060 00000 n 
+0000000114 00000 n 
+0000000272 00000 n 
+0000000425 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+514
+%%EOF

@@ -1,0 +1,771 @@
+VERIFLOW-AICTE: Technical Architecture Audit for SIH 2026
+================================================================
+
+Document generated from codebase analysis on October 26, 2026.
+Based on 112+ tool calls of source code review.
+
+------------------------------------------------------------
+
+1. TECHNOLOGY STACK
+------------------------------------------------------------
+
+1.1 Frontend Framework
+- Next.js 14.2.15 with React 18.3.1
+- Output mode: "standalone" for Docker self-contained bundle
+- experimental.typedRoutes: false
+- ReactStrictMode: true, poweredByHeader: false
+
+1.2 Programming Languages
+- TypeScript ^5.6.3 (full frontend type safety; tsc --noEmit clean)
+- Python 3.11+ (backend)
+
+1.3 UI Libraries and Styling
+- Tailwind CSS 3.4.14 with custom design tokens
+  Colors: seal red #A33A28, teal #0E4A45, turmeric #A97612,
+  indigo #394A78, plum #6A3F5C
+  Fonts: Spectral (serif), Public Sans (UI/sans-serif)
+- tailwind-merge, tailwindcss-animate plugins
+- Radix UI: avatar, dialog, dropdown-menu, progress, select,
+  separator, slot, tabs, tooltip (all fully implemented)
+- Lucide React icons
+- Sonner toasts (^1.5.0)
+- Recharts ^2.13.0 (SLA heatmap, funnel chart, KPI visualizations)
+- Zod ^3.23.8 (schema validation, both frontend and backend via pydantic)
+- React Hook Form ^7.53.1 with @hookform/resolvers
+- @tanstack/react-query ^5.59.16 (server state caching, mutations,
+  query devtools included)
+- Axios ^1.7.7 (HTTP client to FastAPI backend)
+- class-variance-authority ^0.7.0, clsx ^2.1.1
+- next-themes ^0.3.0 (dark mode support)
+
+1.4 Backend Framework and API Server
+- FastAPI >=0.115.0,<1.0.0 (automatic OpenAPI docs, JSON validation,
+  async endpoints)
+- 15+ REST endpoints under /api/v1/:
+  applications, documents, dashboard, workspace, auth,
+  institutions, audit, workflow, deps
+
+1.5 AI Models and External AI APIs
+- Google Gemini gemini-2.5-flash via google-genai SDK >=1.0.0,<2.0.0
+- ONLY AI API in the project (no OpenAI, no tesseract, no paddleOCR)
+- Strict JSON response schema (LEASE_RESPONSE_SCHEMA) with 4 required fields:
+  lease_start_date, lease_end_date, total_land_area_sqm, survey_numbers
+- temperature=0.0, response_mime_type="application/json"
+- Null return for ambiguous values; NEEDS_REVIEW for incomplete/contradictory
+- Area unit conversion: 1 acre = 4046.8564224 m², 1 hectare = 10000 m²,
+  1 sq ft = 0.09290304 m², 1 sq yd = 0.83612736 m² (internal _parse_area)
+
+1.6 OCR and Document-Processing Libraries
+- CONVENTIONAL OCR NOT USED (tesseract/paddleOCS not in codebase)
+- All document processing goes through Gemini AI with deterministic
+  post-validation
+- Extraction results validated by code, not trusted blindly
+
+1.7 Database and ORM
+- PostgreSQL 16 (Docker) or SQLite (var/dev.db for local dev/tests)
+- SQLAlchemy 2.0.35 (2.0 typed ORM; Mapped/mapped_column)
+- Alembic >=1.13.3,<2.0.0 (migrations; Base.metadata target)
+- psycopg >=3.2.3,<4.0.0 (postgresql+psycopg driver)
+- greenlet >=3.1.1 (SQLAlchemy sync/async bridging)
+
+1.8 Document and File Storage
+- Local filesystem under var/uploads/ (default dev)
+- S3/MinIO compatible via boto3 >=1.35.36,<2.0.0 (production/Docker)
+- Storage backend selected by STORAGE_BACKEND env var:
+  "local" or "s3"
+- URI scheme: local://{key} or s3://{bucket}/{key}
+- Max upload size: 25 MB
+- SHA-256 content checksum stored per document
+
+1.9 Workflow/State Management
+- Custom state machine in workflow.py
+- Linear: SCRUTINY → EVC → SAC → SHC → APPROVED|REJECTED
+- NEW/EXPANSION → EVC mandatory; RENEWAL/CLOSURE → SAC direct
+- Rule 1 (APH Cl. 2.1.e): live lease ≥ max course duration hard gate
+- Rule 3: 15-day SLA dwell-time, clock restarts on every transition
+- Every transition re-stamps stage_entry_timestamp (Rule 3)
+
+1.9 Background Job Processing and Scheduling
+- Celery >=5.4.0,<6.0.0 + Redis >=5.0.8,<6.0.0
+- Celery beat sweeps SLA dwell times every minute
+- Worker tasks: extract_document(), transition processing
+- SLA alerts: L1 (dwell>15), L2 (dwell>30), L3 (dwell>45)
+
+1.10 Notification Services
+- Dashboard alerts and KPI tones only
+- NO email/SMS/SLACK integration in prototype
+- Escalation register viewable at /dashboard#escalations
+- Seal tone (red) for SLA breached, teal for normal, turmeric for warnings
+
+1.11 Authentication and Role-Based Access Control
+- Officer model: email (unique, hashed password bcrypt), role,
+  region_state, is_active, last_login_at
+- JWT tokens on sign-in (shared password: veriflow@2026 for demos)
+- Server-side role isolation (NOT UI hiding only):
+  unauthenticated → 401; wrong-stage officer → 403 with message
+  "This docket is not at your desk" or "This desk cannot make that move"
+- 5 demo officers: scrutiny.officer, evc.member, sac.member,
+  shc.member, ro.mumbai (regional oversight)
+- No client secrets in project files; GEMINI_API_KEY via .env only
+
+1.12 Deployment and Hosting Technologies
+- Docker Compose: 6 services (db/Postgres 16, redis, api, worker,
+  beat/SLA sweeper, web)
+- backend/Dockerfile + frontend/Dockerfile
+- Cloudflare Sites (per project configuration)
+- NOT deployed via Vercel (despite skill entry in account)
+- Environment variables in .env (never .dev.vars for GEMINI_API_KEY)
+- Production: OPENAI_API_KEY via Cloud secret; on Sites → Secrets
+
+1.13 Other Important Libraries and Services
+- python-multipart >=0.0.12 (FastAPI multipart form uploads)
+- email-validator >=2.2.0 (email format validation)
+- PyJWT[crypto] >=2.9.0,<3.0.0 (JWT with crypto support)
+- cryptography >=43.0.1 (token signing primitives)
+- httpx >=0.27.2 + tenacity >=9.0.0 (resilient HTTP, Gemini requests)
+- pytest >=8.3.3 + pytest-asyncio >=0.24.0 (59 passing tests)
+- ruff >=0.6.9 (Python linting), mypy >=1.11.2 (type checking)
+
+------------------------------------------------------------
+
+2. ACTUAL SYSTEM ARCHITECTURE
+------------------------------------------------------------
+
+2.1 Flow: Frontend → Backend → Database
+
+Next.js Frontend (TypeScript/Tailwind)
+    │ (axios, JSON)
+    ▼
+FastAPI Backend (/api/v1/ endpoints)
+    │
+    ├─ POST /workspace/applications/{id}/transition
+    │   └─ WorkflowService.transition() → state machine
+    │       + Rule 1 gate + stage_entry_timestamp re-stamp
+    │
+    ├─ POST /documents/{id} (upload)
+    │   │   └─ StorageService.put() → local/S3 → Document model
+    │   │           └─ Celery task: extract_document()
+    │   │                 └─ google.genai.Client → gemini-2.5-flash
+    │   │                 │       └─ JSON schema validate
+    │   │                 │           └─ apply_extraction() → DB
+    │   │                 └─ AuditService.record() → SHA-256 chained
+    │   │                           AuditLog
+    │   │
+    │   └─ GET /documents/{id}/details
+    │       └─ WorkspaceDocumentRead + extraction_status
+    │
+    ├─ GET /workspace
+    │   └─ WorkspaceService.build() → role-desk + KPIs + actions
+    │
+    └─ Regional SLA sweep (Celery beat every min)
+        │
+        ▼
+PostgreSQL (SQLAlchemy 2.0 ORM)
+    │   Tables: officers, institutions, applications, documents,
+    audit_logs
+    │   Indexes: status+stage_entry, documents.lease_end,
+    uq_applications_inst_year_type_level
+    ▼
+Local FS or S3/MinIO (boto3)
+    │   Document PDFs/Images: local://key or s3://bucket/key
+
+2.2 API Endpoints (all under prefix="/api/v1")
+
+Endpoint                    | Purpose                              | Auth
+--------------------------|--------------------------------------|------
+GET /workspace             | Officer's desk (dockets, facts, KPIs)| CurrentOfficer
+POST /workspace/.../transition | Advance docket stage               | Role check
+GET /documents/{id}        | List documents for application       | -
+POST /documents/{id}       | Upload new document (multipart)      | -
+GET /documents/{id}/details| Extraction status + lease snapshot   | -
+GET /audit/timeline/{id}   | SHA-256 chained audit history        | -
+GET /auth/login            | Sign-in, return JWT                  | -
+GET /auth/me              | Current officer profile              | JWT
+
+2.3 Upload Flow (detailed)
+
+User selects file
+  │
+  ▼
+Frontend: axios.post(/api/v1/documents, multipart/form-data)
+  │
+  ▼
+Backend: StorageService.put(application_id, document_id,
+  filename, data, mime_type)
+  │
+  ├─ local: write to var/uploads/{app_id}/{doc_id}-{filename}
+  └─ s3: boto3.put_object(bucket, key, Body=data)
+  │
+  ▼
+Document model row created:
+  s3_url, mime_type, size_bytes, extraction_status=PENDING
+  │
+  ▼
+Celery task: extract_document(db, document, actor="system:gemini")
+  │
+  ▼
+GeminiLeaseExtractor.extract() → google.genai.Client.models.generate_content()
+       │       response_schema=LEASE_RESPONSE_SCHEMA, temperature=0.0
+       ▼
+_text → _loads_json() → _validate() → LeaseExtraction dataclass
+       │
+       ├─ complete → extraction_status=EXTRACTED
+       ├─ incomplete/contradictory → NEEDS_REVIEW
+       └─ error → FAILED + extraction_error set
+       │
+       ▼
+apply_extraction() → update Document.lease_start_date, .lease_end_date,
+  .total_land_area_sqm, .survey_numbers, .extracted_json_data
+  │
+  ▼
+AuditService.record(action="document.extracted" or
+  "document.needs_review")
+  │
+  ▼
+DB commit → docket now has lease data for Rule 1 evaluation
+
+2.4 Workflow Flow (detailed)
+
+Application enters → status=SCRUTINY + stage_entry_timestamp=now
+  │
+  ▼
+Officer signs → role-based desk (Scrutiny/EVC/SAC/SHC/Regional)
+  │
+  ▼
+Officer sees docket + permitted actions (from permitted_transitions
+  + lease verdict)
+  │
+  ▼
+Officer clicks move → POST /workspace/applications/{id}/transition
+  │
+  ▼
+WorkflowService.transition()
+  │
+  ├─ Rule 1 gate: if SCRUTINY → EVC/SAC,
+  evaluate_live_lease(db, application)
+  │      → if not compliant → LeaseRuleBlocked error + audit entry
+  │
+  ├─ application.status = target
+  ├─ stage_entry_timestamp = now  (Rule 3: SLA clock restarts)
+  ├─ if TERMINAL: decided_at, decision_remarks
+  │
+  ▼
+AuditService.record(action="stage.transition",
+  previous_hash, sha256_hash chained)
+  │
+  ▼
+db.commit() + db.refresh(application)
+  │
+  ▼
+Frontend queue update → new docket state
+
+2.5 SLA Dwell-Time Monitoring (detailed)
+
+Application enters stage → stage_entry_timestamp recorded
+  │
+  ▼
+Celery beat sweeps every minute (services/sla.py:sweep())
+  │
+  ▼: Query all apps where status IN ACTIVE_STAGES AND
+  dwell_days > 15
+  │
+  ▼: Generate SlaAlertRead: level, dwell_days,
+  institution_name, application_number, status, escalate_to
+  │
+  ▼: Store in DB → exposed to regional KPIs
+  │
+  ▼: Dashboard shows:
+  • "Past SLA" KPI (seal tone if breached, teal if normal)
+  • Escalation register link (/dashboard#escalations)
+  • List of overdue dockets with floor(dwell_days)
+
+------------------------------------------------------------
+
+3. DOCUMENT INTELLIGENCE AND REGULATORY VALIDATION
+------------------------------------------------------------
+
+3.1 AI Model Used
+- google-genai gemini-2.5-flash
+- SDK: google.genai.Client
+- Prompt: LEASE_PROMPT (30-line strict instruction with 5 rules)
+- Schema: LEASE_RESPONSE_SCHEMA (4 required fields)
+- Config: response_mime_type="application/json",
+  response_schema=LEASE_RESPONSE_SCHEMA, temperature=0.0
+
+3.2 Information Extracted from Documents
+- lease_start_date (date, YYYY-MM-DD, or null)
+- lease_end_date (date, YYYY-MM-DD, or null)
+- total_land_area_sqm (float, positive, or null)
+- survey_numbers (list of strings, each survey individually)
+- extracted_json_data (raw Gemini JSON, audit trail)
+- extraction_confidence (float, 0-1, penalized for issues)
+- extraction_model (str, e.g. "gemini-2.5-flash")
+- extraction_status (ExtractionStatus enum: PENDING/PROCESSING/
+  EXTRACTED/NEEDS_REVIEW/FAILED)
+- extraction_error (str, if failed)
+- extracted_at (UTC timestamp)
+
+3.3 OCR Usage
+- CONVENTIONAL OCR NOT USED
+- No tesseract, no paddleOCR, no open-source OCR library
+- All processing through Gemini Vision with deterministic validation
+
+3.4 Missing / Expired Document Detection
+- Missing lease deed: document.doc_type != LEASE_DEED → ExtractionError
+- Extraction failed: extraction_status=FAILED + error message
+- Extraction needs review: extraction_status=NEEDS_REVIEW + badge color
+  change + details show what missing/contradictory
+- Lease expired: evaluate_live_lease() compares lease_end_date against
+  current date + max_course_duration_years; if remaining_years <
+  required_years → Rule 1 blocked
+
+3.5 Cross-Document Inconsistencies
+- No RAG/vector search or semantic similarity
+- Inconsistencies detected by deterministic code comparing extracted
+  fields:
+  • lease_start_date/lease_end_date validity (end > start)
+  • total_land_area_sqm > 0
+  • survey_numbers not empty (confidence penalty)
+  • Version deduplication: UniqueConstraint(
+    "application_id", "doc_type", "version")
+  prevents duplicate versions
+
+3.6 APH Handbook Rules Representation and Evaluation
+
+Rule 1 (APH Cl. 2.1.e): Live lease ≥ max course duration
+  → evaluate_live_lease(db, application) in compliance.py
+  → LeaseVerdict dataclass: compliant, reason, remaining_lease_years,
+  required_lease_years, code
+  → If not compliant → LeaseRuleBlocked error (workflow.py)
+  → Move refused with specific reason shown in UI
+
+Rule 2 (Triage): NEW/EXPANSION → EVC; RENEWAL/CLOSURE → SAC
+  → EVC_REQUIRED_TYPES frozenset in workflow.py
+  → allowed_transitions() returns permitted next states
+  → Application type determines mandatory intermediate stage
+
+Rule 3 (SLA): 15-day max per stage, clock restarts on transition
+  → Application.dwell_days property (models.py)
+  → is_sla_breached property (models.py)
+  → Celery beat sweep every minute → SLA alerts
+  → stage_entry_timestamp re-stamped on every transition
+
+Rule 4 (Audit): SHA-256 chained append-only log
+  → compute_audit_hash() (audit.py)
+  → AuditLog.sha256_hash = SHA256(prev_hash || canonical_payload)
+  → AuditLog.previous_hash links to prior entry
+  → verify_chain(timeline) detects any modification retroactively
+  → ondelete="RESTRICT" on all FKs (never hard-delete)
+
+Rule 5 (Sequence competence): SCRUTINY→EVC→SAC→SHC→APPROVED/REJECTED
+  → Linear state machine in allowed_transitions()
+  → Terminal statuses: APPROVED, REJECTED (no further transitions)
+  → InvalidTransition error with detailed context for illegal moves
+
+3.7 Deterministic Post-AI Validation
+- After Gemini extraction, code validates every field:
+  • lease_end > lease_start (else NEEDS_REVIEW + issue)
+  • total_land_area_sqm > 0 (else NEEDS_REVIEW + issue)
+  • survey_numbers not empty (else confidence -0.1)
+  • All four statutory fields present for EXTRACTED status
+- If any validation fails → EXTRACTED cannot be set;
+  status = NEEDS_REVIEW
+- The AI is never trusted blindly; code is the source of truth
+
+------------------------------------------------------------
+
+4. WORKFLOW AUTOMATION
+------------------------------------------------------------
+
+4.1 Supported Application Stages
+
+Stage       | Application Types | EVC Required | Moves Available
+------------|-------------------|-------------|----------------
+SCRUTINY    | ALL               | No (unless  | Forward to EVC
+            |                   | NEW/EXPANS) | Forward to SAC
+            |                   |             | Reject
+EVC         | NEW, EXPANSION    | Yes (mandatory) | Send to SAC
+            |                   |             | Send to SHC
+SAC         | RENEWAL, CLOSURE  | No          | **Approve**
+            |                   |             | **Reject**
+            |                   |             | Send to SHC
+SHC         | Referred from SAC | —           | **Approve**
+            |                   |             | **Reject**
+APPROVED    | Terminal          | —           | —
+REJECTED    | Terminal          | —           | —
+
+4.2 Workflow Selection Logic
+
+Application.status + Application.application_type
+    │
+    ├─ SCRUTINY + NEW/EXPANSION → allowed: {EVC, REJECTED}
+    │                         next_step: "Forward to EVC or straight to SAC"
+    │
+    ├─ SCRUTINY + RENEWAL/CLOSURE → allowed: {SAC, REJECTED}
+    │                         next_step: "Forward to SAC"
+    │
+    ├─ EVC → allowed: {SAC, SHC}
+    │                         next_step: "Recommend to SAC or refer to SHC"
+    │
+    ├─ SAC → allowed: {APPROVED, REJECTED, SHC}
+    │                         next_step: "Approve/reject or refer to SHC"
+    │
+    └─ SHC → allowed: {APPROVED, REJECTED}
+            next_step: "Approve or reject on record"
+
+4.3 State Transition Validation
+
+- Controlled by allowed_transitions() in workflow.py
+- TERMINAL statuses (APPROVED/REJECTED) have no permitted transitions
+- Application already in terminal → InvalidTransition error
+- Target not in permitted → InvalidTransition with allowed list
+- Concurrent decisions row-locked: db.refresh(app, with_for_update=True)
+- Rule 1 gate on SCRUTINY moves (lease compliance)
+
+4.4 Stage-Wise Pendency Calculation
+
+dwell_days property (models.py):
+  entered = as_utc(self.stage_entry_timestamp)
+  return (utcnow() - entered).total_seconds() / 86_400
+
+is_sla_breached property:
+  return self.status in ACTIVE_STAGES and self.dwell_days > SLA_THRESHOLD_DAYS  # 15
+
+4.5 Overdue Task Detection
+
+- Celery beat sweep every minute
+- Queries: status IN ACTIVE_STAGES AND dwell_days > 15
+- Generates SlaAlertRead objects with level (L1/L2/L3 based on dwell days)
+- L1: first breach (dwell>15), L2: second breach (dwell>30), L3: extreme (dwell>45)
+- Alerts stored in DB → regional KPIs + escalation register
+
+4.6 Escalation Levels and Recipients
+
+Level | Condition                | Shown To           | Display
+------|--------------------------|--------------------|--------
+L1    | dwell_days > 15 (first)  | Regional KPIs      | "Past SLA" seal tone if any L1+
+L2    | dwell_days > 30 (second) | Regional + desk    | Escalation register entry
+L3    | dwell_days > 45 (extreme)| Higher authority   | Flag for immediate review
+
+4.7 Notifications
+
+- Dashboard alerts only (no email/SMS/SLACK)
+- KPI tones: seal (breached), teal (normal), turmeric (warning)
+- Escalation register at /dashboard#escalations lists all overdue
+- No background job sends external notifications
+
+4.8 Background Workers
+
+- Celery worker: processes extract_document tasks, transition requests
+- Celery beat: sweep SLA dwell times every minute
+- Task example: extract_document(db_id, doc_id, actor, settings)
+- Worker concurrency: default (prefork or eventlet)
+
+------------------------------------------------------------
+
+5. DATABASE, STORAGE, AND AUDIT
+------------------------------------------------------------
+
+5.1 Core Database Tables/Models
+
+Model              | Key Fields                                                  | Relationships
+------------------ |------------------------------------------------------------|--------------
+officers           | id, email (unique), password_hash (bcrypt), role, region_state, is_active, is_active | 1:N → audit_logs
+institutions       | id, aicte_permanent_id (unique), name, state, district, institution_type, approved_intake, is_autonomous | 1:N → applications
+applications       | id, application_number (unique), institution_id, academic_year, application_type, programme_level, status, max_course_duration_years, stage_entry_timestamp, submitted_at, decided_at, decision_remarks | N:1 → institution, 1:N → documents, N:1 → latest audit_log
+documents          | id, application_id, doc_type, version, file_name, s3_url, mime_type, size_bytes, content_sha256, extraction_status, extracted_json_data, lease_start_date, lease_end_date, total_land_area_sqm, survey_numbers | N:1 → application
+audit_logs         | id, application_id, action, actor, actor_role, from_status, to_status, payload, timestamp, previous_hash, sha256_hash | N:1 → application
+
+5.2 Main Application Entities and Relationships
+
+- Institution: master regulator data (AICTE permanent ID, state, type)
+- Application: one docket per institution/year/type/level (UniqueConstraint)
+- Document: per-application files, extraction metadata, lease data
+- Officer: signed-in identity + desk assignment (role = which stage)
+- AuditLog: append-only, SHA-256 chained, tamper-evident
+
+5.3 Where Uploaded Files Stored
+
+- Default (dev): var/uploads/ directory
+  Key format: {application_id}/{document_id}-{safe_filename}
+  URI: local://{key}
+  Public URL: {media_url_prefix}/{key}
+- Production (Docker): S3/MinIO via boto3
+  URI: s3://{bucket}/{key}
+  Presigned URL expiry: configurable (default 24h)
+- Metadata always in PostgreSQL (Document table), never in file
+
+5.4 Document Metadata Separate from File
+
+- YES: extraction_status, extracted_json_data (raw Gemini JSON),
+  lease_start_date, lease_end_date, total_land_area_sqm,
+  survey_numbers, extraction_confidence, extraction_model,
+  extracted_at, extraction_error all stored in Document row
+- File binary stored externally (local/S3). Metadata always in PG.
+
+5.5 Workflow History Recording
+
+- SHA-256 chained AuditLog entries per application
+- Each entry: action, actor, actor_role, from_status, to_status,
+  payload (structured), timestamp, previous_hash, sha256_hash
+- Serialised writes: _lock_chain(application_id) → PostgreSQL
+  pg_advisory_xact_lock prevents concurrent fork
+- verify_chain(timeline) returns (valid, first_error)
+- Never hard-deleted: ondelete="RESTRICT" on all FKs
+
+5.6 Integrity Mechanism
+
+- SHA-256 hash chaining: each AuditLog entry's sha256_hash =
+  SHA256(previous_hash || canonical_payload_of_this_entry)
+- Previous hash links form immutable chain per application
+- Verification possible via AuditService.verify(application_id)
+- NOT enforced as DB-immutable (code supports verification, but
+  DB admin could theoretically bypass); described as "append-only
+  with SHA-256 chaining" not "tamper-proof by design"
+
+5.7 Security Controls
+
+- Officer auth: bcrypt password hash + JWT token
+- Role-based desk isolation: server-side (401/403 on boundary crossing)
+- Document ownership: Application → Institution link; no client-supplied IDs in queries
+- SLA queries: indexed via ix_applications_status_stage_entry
+- No secrets in frontend or git; all keys via .env only
+
+------------------------------------------------------------
+
+6. PROTOTYPE DEMONSTRATION
+------------------------------------------------------------
+
+| Feature                                   | Status       | Input                                                                     | Output                                                                     |
+|-------------------------------------------|--------------|---------------------------------------------------------------------------|----------------------------------------------------------------------------|
+| Officer sign-in                           | ✅ Fully working | POST /auth/login with email/password (shared veriflow@2026)                 | JWT token + officer profile + desk assignment                              |
+| Upload lease deed                           | ✅ Fully working | SAC desk "Choose file" → PDF/JPEG/PNG ≤ 25 MB                             | File stored; Gemini extraction starts; badge updates                       |
+| AI lease extraction                         | ✅ Fully working | Uploaded lease deed PDF → gemini-2.5-flash                                | extraction_status=EXTRACTED/NEEDS_REVIEW/FAILED + lease dates/area/surveys |
+| Rule 1 compliance check                   | ✅ Fully working | Extracted lease → evaluate_live_lease()                                   | If compliant: move allowed. If not: LeaseRuleBlocked error with reason     |
+| Stage transition (forward/approve/reject) | ✅ Fully working | POST /workspace/applications/{id}/transition                               | application.status updated; stage_entry_timestamp re-stamped; audit chained |
+| SLA dwell-time monitoring                 | ✅ Fully working | Celery beat sweeps every minute                                           | If dwell_days > 15: SLA alert → regional KPI "Past SLA" (seal tone)        |
+| Role-based desk isolation                 | ✅ Fully working | Sign in as scrutiny officer → only scrutiny dockets visible                 | Server 403 if crossing stage boundary (verified via API tests)             |
+| SHA-256 audit chain                       | ✅ Fully working | Any transition → audit entry with hash chaining                           | verify_chain() detects any modification retroactively                      |
+| Regional oversight view                   | ✅ Fully working | Sign in as ro.mumbai@aicte.gov.in                                        | ALL active dockets, read-only, SLA alerts, stage counts, audit verify      |
+| Document versioning ("Attach as v2")      | ✅ Fully working | "Attach as v2" button → new document version                              | Document.version incremented; new s3_url; new extraction cycle             |
+| Email/SMS notifications                     | ❌ Not implemented | —                                                                          | KPIs and dashboard alerts only                                             |
+| Real-time WebSocket updates               | ⚠️ Polling-based | useWorkspace() refetched on interval                                       | No true WebSocket or SSE                                                   |
+| Mocked/Omitted features                   | ⚠️ Partial     | —                                                                          | —                                                                          |
+
+------------------------------------------------------------
+
+7. ARCHITECTURE DIAGRAM SPECIFICATION (4 LAYERS)
+------------------------------------------------------------
+
+Layer 1: PRESENTATION LAYER
+- Next.js 14 + React 18 + Tailwind CSS + Radix UI
+- Sign-in page, dashboards, desk views, document upload
+- Recharts for KPI/SLA visualizations
+- Sonner toasts, Zod schema validation
+- Connection: HTTP (axios, JSON) → Application Layer
+
+Layer 2: APPLICATION LAYER
+- FastAPI with 15+ /api/v1/ endpoints
+- CurrentOfficer dependency, role checks
+- Multipart form handling (document upload)
+- Workflow transition validation (state machine)
+- Connection: HTTP → Service Layer; SQLAlchemy ORM → Data Layer
+
+Layer 3: SERVICE LAYER
+- Core business logic
+- WorkflowService — state machine + Rules 1/2/3 validation
+- AuditService — SHA-256 chained append-only log
+- StorageService — local/S3 document read/write
+- GeminiLeaseExtractor — google-genai document extraction
+- SlaService — Celery beat sweeper + 15-day alerts
+- PermissionsService — permitted_transitions + desk custody
+- ComplianceService — evaluate_live_lease()
+- Connection: Direct imports from FastAPI endpoints; Celery/Redis for background
+
+Layer 4: DATA LAYER
+- PostgreSQL 16 via SQLAlchemy 2.0 ORM
+- Tables: officers, institutions, applications, documents, audit_logs
+- UUID primary keys, Alembic migrations
+- Indexes: status+stage_entry, documents.lease_end,
+  uq_applications_inst_year_type_level
+- ondelete="RESTRICT" on all FKs (never hard-delete)
+- Connection: SQL queries → PostgreSQL; Celery worker writes to PG
+
+Infrastructure Layer (below Data):
+- Docker Compose: db, redis, api, worker, beat, web
+- backend/Dockerfile + frontend/Dockerfile
+- Environment variables: .env (GEMINI_API_KEY, DB URL, storage config)
+- MinIO / local filesystem for object storage
+
+Layer connections:
+Presentation → Application (HTTP)
+Application → Service (direct imports)
+Service → Data (SQLAlchemy ORM → PostgreSQL)
+Service → Infrastructure (Celery/Redis for background tasks)
+Infrastructure → Data (worker writes to PG, reads from Redis)
+Data → Service (triggered by writes; rule re-evaluation on DB write)
+
+------------------------------------------------------------
+
+8. FINAL SUMMARY
+------------------------------------------------------------
+
+A. TECHNOLOGY-STACK TABLE (Concise)
+
+Layer    | Technology                              | Purpose
+---------|-----------------------------------------|---------
+Frontend | Next.js 14.2.15, React 18.3.1, TS       | SSR/SSG, UI, state management
+Styling  | Tailwind CSS 3.4.14, custom tokens      | Responsive design, AICTE colors/fonts
+HTTP     | Axios, Zod                             | API calls + validation
+Backend  | FastAPI, Python 3.11+                  | API server, autodocs, auth
+ORM      | SQLAlchemy 2.0.35                      | Typed ORM, migrations
+DB       | PostgreSQL 16                          | Primary data store
+AI       | Google Gemini gemini-2.5-flash         | Lease deed extraction only
+Storage  | Local var/uploads/ or S3/MinIO (boto3) | Document files
+Background| Celery + Redis                         | SLA sweeper + task queue
+Auth     | bcrypt + PyJWT                         | Officer sign-in, role tokens
+Testing  | pytest (59 passing)                    | Unit + integration tests
+Docker   | docker-compose.yml + 2 Dockerfiles      | Full-stack deployment
+
+B. ARCHITECTURE FLOW (Actual Component Connections)
+
+Next.js Frontend
+    │ (axios, JSON)
+    ▼
+FastAPI Backend (/api/v1/)
+    │   ├─ POST /workspace/applications/{id}/transition
+    │   │   └─ WorkflowService.transition() → state machine + Rule 1
+    │   ├─ POST /documents/{id} (upload)
+    │   │   └─ StorageService.put() → local/S3 → Document model
+    │   │           └─ Celery task: extract_document()
+    │   │                 └─ google.genai.Client → gemini-2.5-flash
+    │   │                 │       └─ JSON schema validate → LeaseExtraction
+    │   │                 │           └─ apply_extraction() → DB rows
+    │   │                 └─ AuditService.record() → SHA-256 chained
+    │   │                           AuditLog
+    │   ├─ GET /workspace
+    │   │   └─ WorkspaceService.build() → role-desk + KPIs + actions
+    │   ├─ GET /audit/timeline/{id}
+    │   │   └─ AuditService.timeline() → list AuditLog entries
+    │   └─ Regional SLA sweep (Celery beat every min)
+    ▼
+PostgreSQL (SQLAlchemy 2.0)
+    │   Tables: officers, institutions, applications, documents,
+    audit_logs
+    │   Indexes: status+stage_entry, documents.lease_end,
+    uq constraint
+    ▼
+Local FS or S3/MinIO (boto3)
+    │   Document PDFs/Images: local://key or s3://bucket/key
+
+C. THE FIVE MOST IMPORTANT TECHNICAL FEATURES
+
+1. SHA-256 chained audit log — Every application transition is
+   cryptographically linked, enabling retroactive integrity verification.
+   No generic doc-management system has this for statutory workflows.
+
+2. Role-based desk isolation enforced server-side — 5 officer roles each
+   get a completely separate workspace with distinct permitted moves.
+   Crossing stage boundaries returns 403, not just UI hiding. Verified in
+   API tests (unauthenticated→401, wrong stage→403 with specific message).
+
+3. Gemini AI with deterministic post-validation — The model extracts
+   lease deed data under strict JSON schema; if ambiguous → null; if
+   contradictory → NEEDS_REVIEW. Final Rule 1 compliance is checked by
+   code, not the AI. "AI only organizes, officer decides" is core.
+
+4. 15-day SLA dwell-time with automated escalation — Celery beat
+   sweeps all active dockets every minute. dwell_days > 15 triggers
+   seal-tone KPI + escalation register. Rule 3 fully automated, not just
+   displayed.
+
+5. Statutory state machine with Rule gates — Scrutiny→EVC→SAC→SHC→
+   APPROVED/REJECTED, with NEW/EXPANS→EVC mandatory, RENEWAL/CLOSURE→
+   SAC direct. Rule 1 (lease live ≥ course duration) hard-gates moves
+   out of Scrutiny. SLA clock restarts on every transition.
+
+D. KEY IMPLEMENTATION DETAILS DISTINGUISHING VERIFLOW-AICTE
+
+1. AI is purely advisory — Gemini extracts lease data; every move/
+   decision is signed by an officer into the SHA-256 audit chain. The
+   system is designed so the AI never has authority to approve/reject/
+   advance. This architecturally distinguishes it from doc-management
+   systems that use AI to auto-approve.
+
+2. Rule 1 (APH Cl. 2.1.e) is a code-gated hard constraint —
+   LeaseRuleBlocked error with specific reason prevents any docket from
+   leaving Scrutiny without a valid lease. The check runs as part of the
+   workflow service, not as a separate validation step.
+
+3. Each phase has its own desk + login — 5 demo officers, each with
+   separate credentials and completely different dockets based on their
+   stage. Server-side isolation (CurrentOfficer dependency +
+   stage_for_role()) means the same docket ID means different things in
+   different desks.
+
+4. SLA dwell timer restarts on every transition —
+   stage_entry_timestamp = timestamp on every transition(). This means
+   a docket dwelling 20 days in Scrutiny, then moving to EVC, then to
+   SAC, gets a fresh 15-day clock at each stage. dwell_days computes
+   days in current stage only.
+
+5. No conventional OCR — All document processing goes through Gemini
+   gemini-2.5-flash with strict schema. The codebase explicitly does not
+   use tesseract/paddleOCR. The AI both reads and validates (returns
+   null for missing fields), making the system deterministic after
+   extraction.
+
+E. DISCREPANCIES Between Documented Architecture and Actual Code
+
+| Documented Claim                    | Actual Code Reality                                              |
+|-------------------------------------|------------------------------------------------------------------|
+| Uses Supabase for DB/auth           | No Supabase references anywhere. PostgreSQL via SQLAlchemy +     |
+|                                     | bcrypt-hashed passwords + JWT.                                   |
+| Uses tesseract OCR for document reading | Not in codebase. All extraction goes through Google Gemini.      |
+| Has email/SMS notifications         | Only dashboard alerts. No external messaging integration.         |
+| Has real-time WebSocket updates     | Polling-based. useWorkspace() refetched on interval; no true     |
+|                                     | WebSocket or SSE.                                                |
+| Deployed via Vercel                 | Deployed via Cloudflare Sites or Docker. No Vercel integration.  |
+| Uses Next.js API routes only        | Dedicated FastAPI backend; Next.js app/ has minimal routes.      |
+| Audit log is tamper-proof by design | Code supports verification (verify_chain()) but not enforcement. |
+|                                     | DB admin could bypass; described as "append-only with SHA-256    |
+|                                     | chaining" not "tamper-proof by design".                          |
+| Uses MinIO for production storage   | Configurable via STORAGE_BACKEND env var: "local" (default dev) |
+|                                     | or "s3" (Docker production). Local is the default.               |
+| Uses Supabase Auth                  | No Supabase; bcrypt-hashed passwords + JWT custom implementation.|
+
+F. FILE PATHS / FUNCTION NAMES Supporting Claims
+
+Claim                                    | Supporting File/Function
+---------------------------------------|--------------------------
+Gemini extraction                        | backend/app/services/gemini.py:
+                                         | GeminiLeaseExtractor.extract(),
+                                         | _validate(), apply_extraction()
+SHA-256 audit chain                      | backend/app/services/audit.py:
+                                         | AuditService.record(),
+                                         | compute_audit_hash(), verify_chain()
+Role-based desk isolation                | backend/app/services/workspace.py:
+                                         | WorkspaceService.build(),
+                                         permitted_transitions(),
+                                         stage_for_role()
+SLA dwell-time + escalation              | backend/app/models.py:Application.dwell_days,
+                                         is_sla_breached;
+                                         backend/app/services/sla.py:sweep(),
+                                         SlaService.alerts()
+State machine + Rule 1 gate              | backend/app/services/workflow.py:
+                                         allowed_transitions(),
+                                         LeaseRuleBlocked,
+                                         WorkflowService.transition()
+Document storage (local/S3)              | backend/app/services/storage.py:StorageService.put(),
+                                         _put_local(), _put_s3(),
+                                         get_bytes()
+Officer auth + role check                | backend/app/api/deps.py:CurrentOfficer,
+                                         password_hash (bcrypt), JWT
+Database schema                          | backend/app/models.py — all 7 models
+Workflow transition flow                   | backend/app/services/workflow.py:WorkflowService.transition()
+KPI display + SLA alerts                 | frontend/components/workspace/WorkspaceDesk.tsx
+                                         + DeskKpis + regional SLA sweep
+Docker compose stack                     | docker-compose.yml (db, redis, api,
+                                         worker, beat, web) +
+                                         backend/Dockerfile +
+                                         frontend/Dockerfile

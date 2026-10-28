@@ -1,0 +1,90 @@
+@import url("https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700&family=Spectral:wght@400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-public-sans: "Public Sans";
+  --font-spectral: "Spectral";
+}
+
+@layer base {
+  * {
+    @apply border-rule;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-paper font-sans text-ink antialiased;
+    font-feature-settings: "kern" 1;
+  }
+
+  ::selection {
+    background-color: #0e4a4526;
+  }
+
+  :focus-visible {
+    outline: 2px solid #0e4a45;
+    outline-offset: 2px;
+  }
+
+  input,
+  textarea,
+  button {
+    font: inherit;
+  }
+}
+
+@layer utilities {
+  .ledger-rule {
+    background-image: repeating-linear-gradient(
+      to right,
+      rgba(22, 33, 31, 0.16) 0,
+      rgba(22, 33, 31, 0.16) 1px,
+      transparent 1px,
+      transparent 6px
+    );
+  }
+
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@keyframes slip-shimmer {
+  0% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0.55;
+  }
+}
+
+.skeleton {
+  animation: slip-shimmer 1.8s ease-in-out infinite;
+  background-color: rgba(22, 33, 31, 0.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .skeleton {
+    animation: none;
+  }
+}

@@ -1,0 +1,248 @@
+=== EXTRACTED PDF PAGE TEXT (via pypdf extract_text) ===
+
+
+########## PAGE 1 ##########
+SMART INDIA HACKATHON 2026
+Problem Statement ID – SIH26262
+Problem Statement Title- Integrated AICTE Approval Workflow Automation,
+Compilance Monitoring and Alert Management System
+Theme- Smart Automation
+PS Category- Software
+Team ID-198190
+Team Name (Registered on portal)- Uncut Gems
+
+########## PAGE 2 ##########
+VERIFLOW
+2
+UNCUT
+GEMS
+10,000+ technical institutions face fragmented manual
+tracking across Scrutiny, EVC, and SAC/SHC, causing
+application backlogs, delayed inspections, and
+undetected non-compliance (e.g., APH Clause 2.1(e)
+Live Lease rule).
+• Dynamic APH Routing: Automated path
+assignment across Scrutiny, EVC, & SAC/SHC.
+• Intelligent Document Parsing: Extracts dates
+and metadata to flag statutory defects.
+• Proactive SLA Tracking: Stage-wise dwell
+time alerts with hierarchical escalation.
+• Unified Command Center: Role-based
+visibility for institutions, officers, and
+committees.
+Problem: Our Idea :
+A unified, handbook-aware digital orchestration engine
+featuring deterministic state machines, real-time pendency
+tracking, and proactive document compliance validation.
+Proposed Solution : Innovation/Uniqueness:
+• Handbook-Trained State Machine: Enforces deterministic
+regulatory logic.
+• Live Lease Compliance Guard: Real-time expiry and
+duration validation.
+• Clause-Linked Evidence Auditing: Connects extracted data
+directly to APH clauses.
+• Human-in-the-Loop Safeguards: Automates triage while
+preserving statutory discretion.
+########## PAGE 3 ##########
+TECHNICAL APPROACH
+3
+UNCUT
+GEMS
+Technology Stack:
+• Frontend & UI:
+- Next.js 14 & React 18: Officer dashboards and application
+workspaces
+- TypeScript & Tailwind CSS: Typed interfaces and responsive UI
+styling.
+• Backend API:
+- FastAPI (Python): High-performance asynchronous API web routing.
+- Pydantic: Secure data validation schemas.
+• Workflow & State Management:
+- XState: FSM orchestrating handbook-compliant, multi-stage
+transition logic.
+• Database & Integrity:
+- PostgreSQL: Relational database for workflows, users, and state
+logs.
+- SHA-256 Hashing: Tamper-evident ledger.
+• Task Queue & Storage:
+- Redis & Celery: Async background task queue & proactive SLA
+timers.
+- MinIO / AWS S3: High-capacity encrypted storage for deeds, videos.
+• AI & Media Extraction:
+- Google Gemini 2.5 Flash: Multi-modal OCR parsing lease
+dates/NOCs.
+- OpenCV: Extract metadata/geotags from inspection logs.
+Process Flowchart:
+########## PAGE 4 ##########
+FEASIBILITY AND VIABILITY
+4
+UNCUT
+GEMS
+Technical Feasibility Operational & Implementation Viability
+Challenges Mitigation Strategy
+• AI Extraction: Gemini 2.5 Flash parses unstructured lease & land
+deeds into strict JSON schemas.
+• Rule Engine: Deterministic backend checks for land area, survey
+numbers, and live lease validity.
+• State Orchestration: Finite State Machine controls transitions
+across Scrutiny, EVC, SAC, and SHC.
+• Core Tech Stack: Built on Next.js 14, FastAPI, PostgreSQL,
+Celery, and Redis.
+• Dockerized Core: Reproducible environment running APIs,
+background workers, and persistent stores.
+• Central Command: Role-based workspaces with live application
+queues and SLA indicators.
+• Configurable SLAs: Background monitors tracking stage-wise
+pendency (15-day baseline).
+• Multi-Tier Escalation: Auto-flagging overdue files at 15, 30, and
+45-day intervals.
+• Modular Deployment: Docker Compose architecture ready for
+on-premise government servers or cloud.
+• Scalable Storage: PostgreSQL indexing paired with S3/MinIO for
+secure, high-volume document archives.
+• Regulatory Shifts: APH handbook rules and approval criteria
+update annually.
+• Document Ambiguity: Low-res scans or irregular deed formats
+degrade OCR extraction.
+• External API Barriers: State land registries lack open,
+standardized verification APIs.
+• Workflow Oversight: Automation must not obscure officer
+responsibility.
+• Alert Delivery Limits: Current prototype relies on dashboard-
+only alerts.
+• Configurable Rules: Decoupled business rules allow updates
+without code refactoring.
+• Human-in-the-Loop Triage: Low-confidence parses trigger
+flagged manual verification checkpoints.
+• Simulated Adapters: Standalone validation now; direct API
+hooks added as portals open.
+• Tamper-Evident Ledger: Cryptographic SHA-256 audit trail
+logging automated and manual actions.
+• Asynchronous Hooks: Celery/Redis queue primed for
+SMS/Email gateway integration.
+########## PAGE 5 ##########
+IMPACT AND BENEFITS
+5
+UNCUT
+GEMS
+Direct Impact on Target Users Economic & Operational Benefits
+Strategic Impact VERIFLOW-AICTE: Workflow & Value Impact
+• AICTE Scrutiny Officers: Reduce repetitive manual checking through
+AI-assisted lease-document extraction and rule-based validation.
+• EVC, SAC & SHC Teams: Improve application-stage visibility and
+support consistent workflow transitions.
+• Regional Authorities: Identify overdue applications through stage-wise
+SLA monitoring and dashboard escalation alerts.
+• Technical Institutions: Receive more consistent document checks and
+clearer identification of incomplete or non-compliant lease information.
+• Administrative Teams: Access centralized application records,
+document references, and workflow history for easier review.
+• Reduced Manual Work: Automates parts of lease-data extraction and
+configured compliance checking.
+• Improved Pendency Visibility: Highlights applications that exceed
+configured stage-wise time limits.
+• Better Resource Utilization: Helps officers prioritize overdue cases
+and focus attention on exceptions.
+• Scalable Digital Infrastructure: Uses modular APIs, PostgreSQL,
+background processing, and scalable cloud document storage.
+• APH-Aware Compliance: Supports consistent application routing and
+configured regulatory checks.
+• Greater Transparency: Connects workflow actions and validation
+outcomes with traceable application records.
+• Accountable Decision-Making: Preserves authorized officer oversight
+for approvals, rejections, and exception handling.
+• Digital Governance: Establishes a foundation for structured, traceable,
+and scalable AICTE application processing.
+1. Application
+Intake
+Records &
+docs enter the
+workflow.
+2. AI
+Extraction
+Gemini parses
+lease fields into
+structured
+JSON.
+3. Compliance
+Validation
+Rules check
+validity &
+conditions.
+4. SLA
+Monitoring
+Celery/Redis
+track pendency
+&
+SLA alerts.
+5. Officer
+Decision
+Authorized
+review &
+workflow
+actions.
+########## PAGE 6 ##########
+RESEARCH  AND REFERENCES
+6
+UNCUT
+GEMS
+• Manual Verification: Extensive manual checks for application documents create repetitive
+   workflows. [1]
+• Incomplete Dossiers: Missing, expired, or incorrect documents complicate scrutiny and
+   compliance reviews. [1]
+• Exhaustive Compliance: High manual overhead tracking multiple clauses in AICTE's
+approval
+   handbook. [1]
+• SLA Tracking: Multi-stage transitions make stage-wise pendency and overdue actions
+difficult
+   to monitor.
+• Rombach & Fettke (2025): Systematic review examining 130 deep-learning approaches for
+key
+   information extraction (KIE) from business documents. [2]
+• Baviskar et al. (2021): IEEE Access review highlights complex layouts and dataset quality
+as primary automated extraction challenges. [3]
+• Castellanos Ardila et al. (2022): Large-scale study of automated process compliance,
+   identifying representation and traceability gaps. [4]
+Gap & Problem Identification
+Literature Survey & Competitive Analysis
+• AI Extraction using Google Gemini 2.5 Flash: converting unstructured lease-document
+content into JSON.
+• Validation: Python backend rules validating extracted values and configured compliance
+conditions.
+• Dual-Layer FSM: Client-side XState wizards backed by a server-side Python transition
+engine.
+• SLA Monitoring: Celery and Redis supporting scheduled SLA checks and dashboard
+escalation alerts.
+• Auditability: SHA-256 chained audit records supporting integrity verification and review.
+Technology Benchmarking
+• Administrative Efficiency: Automating parts of document extraction and compliance
+   checking reduces repetitive officer workload.
+• Process Transparency: Centralized workflow records and stage-wise monitoring make
+   application status easier to review.
+• Scalable Governance: Modular APIs, database-backed records, and background
+monitoring
+   provide a foundation for extending the prototype.
+• Human Accountability: Automated checks support authorized officers rather than
+replacing
+   statutory decision-making.
+Economic & Strategic Landscape
+• Lease Extraction: Assess Gemini extraction accuracy for lease dates, land area, and survey
+   numbers into JSON.
+• Compliance Validation: Test lease-duration rules and handling of missing, invalid, or
+   ambiguous fields.
+• Workflow Validation: Check permitted transitions across Scrutiny, EVC, SAC, SHC, and final
+   decisions.
+• SLA Monitoring: Verify configured stage-age checks and dashboard escalation levels beyond
+   15, 30, and 45 days.
+• Audit Verification: Test if SHA-256 chained audit records detect unauthorized modifications
+   to recorded history.
+• Regulatory Foundation: AICTE Approval Process Handbook (2024–2027) provides the relevant
+   regulatory context for processing. [1]
+• Compliance Configuration: Workflow and document rules must map to handbook provisions
+   and application categories.
+• Authorized Verification: External document verification requires issuing-authority access, APIs,
+   or portal integrations.
+• Responsible Automation: Human review, traceable actions, and clearly defined decision authority
+   are essential.
+Policy & Ecosystem Analysis
+Field Tests & Prototype Validation
